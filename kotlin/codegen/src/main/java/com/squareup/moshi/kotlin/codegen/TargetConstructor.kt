@@ -19,6 +19,7 @@ import me.eugeniomarletti.kotlin.metadata.KotlinClassMetadata
 import me.eugeniomarletti.kotlin.metadata.isPrimary
 import me.eugeniomarletti.kotlin.metadata.jvm.getJvmConstructorSignature
 import me.eugeniomarletti.kotlin.metadata.shadow.metadata.ProtoBuf.Constructor
+import java.lang.IllegalArgumentException
 import javax.lang.model.element.ElementKind
 import javax.lang.model.element.ExecutableElement
 import javax.lang.model.util.Elements
@@ -34,8 +35,15 @@ internal data class TargetConstructor(
       val (nameResolver, classProto) = metadata.data
 
       // todo allow custom constructor
-      val proto = classProto.constructorList
-          .single { it.isPrimary }
+      val className = classProto.fqName.let(nameResolver::getString)
+      val proto =       try {
+        classProto.constructorList.single { it.isPrimary }
+      } catch (moreThanOne: IllegalArgumentException) {
+        throw IllegalArgumentException("Class $className has more than one primary constructor!")
+      } catch (hasNoElement: NoSuchElementException) {
+        throw IllegalArgumentException("Class $className has no primary constructor!")
+      }
+
       val constructorJvmSignature = proto.getJvmConstructorSignature(
           nameResolver, classProto.typeTable)
       val element = classProto.fqName
